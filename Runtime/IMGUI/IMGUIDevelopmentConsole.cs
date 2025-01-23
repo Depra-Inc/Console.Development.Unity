@@ -6,12 +6,10 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using static Depra.Console.Development.Module;
 
-namespace Depra.Console.Development
+namespace Depra.Console.Development.IMGUI
 {
 	[AddComponentMenu(MENU_PATH + nameof(IMGUIDevelopmentConsole))]
-	public sealed class IMGUIDevelopmentConsole : MonoBehaviour,
-		IDevelopmentConsoleInput,
-		IDevelopmentConsoleOutput
+	public sealed class IMGUIDevelopmentConsole : MonoBehaviour, IDevelopmentConsoleInput, IDevelopmentConsoleOutput
 	{
 		[SerializeField] private KeyCode _showKey = KeyCode.Backslash;
 		[SerializeField] private Settings _settings;
@@ -24,7 +22,6 @@ namespace Depra.Console.Development
 		private Matrix4x4 _originalGUIMatrix;
 
 		private event Action<ConsoleAction> StateChanged;
-
 		event Action<ConsoleAction> IDevelopmentConsoleInput.StateChanged
 		{
 			add => StateChanged += value;
