@@ -1,6 +1,6 @@
 {
-    "name": "Depra.Template",
-    "rootNamespace": "Depra.Template",
+    "name": "Depra.Console.Development",
+    "rootNamespace": "Depra.Console.Development",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -8,6 +8,9 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": []
+    "defineConstraints": [
+        "DEV_CONSOLE"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

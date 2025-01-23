@@ -1,0 +1,25 @@
+{
+    "name": "Depra.Console.Development.IMGUI",
+    "rootNamespace": "Depra.Console.Development.IMGUI",
+    "references": [
+        "GUID:c2315f1f57e3b497e9ecc0d4ef59101a"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "DEV_CONSOLE",
+        "INCLUDE_IMGUI"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.modules.imgui",
+            "expression": "",
+            "define": "INCLUDE_IMGUI"
+        }
+    ],
+    "noEngineReferences": false
+}
