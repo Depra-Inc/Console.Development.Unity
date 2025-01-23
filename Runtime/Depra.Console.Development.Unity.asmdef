@@ -1,12 +1,14 @@
 {
-    "name": "Depra.Console.Development",
+    "name": "Depra.Console.Development.Unity",
     "rootNamespace": "Depra.Console.Development",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Depra.Console.Development.dll"
+    ],
     "autoReferenced": true,
     "defineConstraints": [
         "DEV_CONSOLE"

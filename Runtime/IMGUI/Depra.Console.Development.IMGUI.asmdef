@@ -7,8 +7,10 @@
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Depra.Console.Development.dll"
+    ],
     "autoReferenced": true,
     "defineConstraints": [
         "DEV_CONSOLE",
