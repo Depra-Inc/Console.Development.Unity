@@ -20,8 +20,7 @@ namespace Depra.Console.Development
 		private bool _needFocus = true;
 		private float _lastInputTime = -1f;
 
-		private GUIStyle _styleTextX;
-		private GUIStyle _styleTextArea;
+		private GUIStyle _textStyle;
 		private Matrix4x4 _originalGUIMatrix;
 
 		private event Action<ConsoleAction> StateChanged;
@@ -70,19 +69,11 @@ namespace Depra.Console.Development
 
 		private void DrawGUI()
 		{
-			_styleTextArea ??= new GUIStyle(GUI.skin.textArea)
-			{
-				fontStyle = FontStyle.Italic,
-				fontSize = _settings.FontSize,
-				alignment = TextAnchor.MiddleLeft,
-				normal = { textColor = _settings.FontColor }
-			};
-
-			_styleTextX ??= new GUIStyle(GUI.skin.textArea)
+			_textStyle ??= new GUIStyle(GUI.skin.textArea)
 			{
 				fontStyle = FontStyle.Bold,
 				fontSize = _settings.FontSize,
-				alignment = TextAnchor.MiddleCenter,
+				alignment = TextAnchor.MiddleLeft,
 				normal = { textColor = _settings.FontColor }
 			};
 
@@ -94,9 +85,9 @@ namespace Depra.Console.Development
 
 			GUILayout.BeginHorizontal();
 			GUI.SetNextControlName(Settings.TEXT_INPUT_NAME);
-			Value = GUILayout.TextField(Value, _styleTextArea, GUILayout.ExpandHeight(true));
+			Value = GUILayout.TextField(Value, _textStyle, GUILayout.ExpandHeight(true));
 			var height = _settings.Height - _settings.Margin * 2f;
-			if (GUILayout.Button("X", _styleTextX, GUILayout.Width(_settings.Height), GUILayout.Height(height)))
+			if (GUILayout.Button("X", _textStyle, GUILayout.Width(_settings.Height), GUILayout.Height(height)))
 			{
 				Show = false;
 			}

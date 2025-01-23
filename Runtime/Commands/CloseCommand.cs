@@ -14,11 +14,9 @@ namespace Depra.Console.Development
 		[field: SerializeField] public string Description { get; set; } = "Close the development console.";
 
 		private IDevelopmentConsoleOutput _console;
-		private IDevelopmentConsoleOutput Console => _console ??=
-			(IDevelopmentConsoleOutput)Object
-				.FindObjectsOfType(typeof(Object))
-				.FirstOrDefault(x => x.GetType()
-					.IsAssignableFrom(typeof(IDevelopmentConsoleOutput)));
+		private IDevelopmentConsoleOutput Console => _console ??= Object
+			.FindObjectsOfType<MonoBehaviour>()
+			.FirstOrDefault(x => x is IDevelopmentConsoleOutput) as IDevelopmentConsoleOutput;
 
 		bool IDevelopmentCommand.Execute(string[] args)
 		{
