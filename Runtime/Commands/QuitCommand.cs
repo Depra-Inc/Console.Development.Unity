@@ -14,13 +14,15 @@ namespace Depra.Console.Development
 
 		bool IDevelopmentCommand.Execute(string[] args)
 		{
-#if UNITY_EDITOR
 			if (Application.isEditor)
 			{
+#if UNITY_EDITOR
 				UnityEditor.EditorApplication.isPlaying = false;
-#else
-				UnityEngine.Application.Quit();
 #endif
+			}
+			else
+			{
+				Application.Quit();
 			}
 
 			return true;
