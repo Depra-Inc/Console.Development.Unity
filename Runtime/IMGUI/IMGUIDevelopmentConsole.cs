@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-// © 2025 Nikolay Melnikov <n.melnikov@depra.org>
+// © 2025 Depra <n.melnikov@depra.org>
 
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using static Depra.Console.Development.Module;
@@ -11,7 +12,7 @@ namespace Depra.Console.Development.IMGUI
 	[AddComponentMenu(MENU_PATH + nameof(IMGUIDevelopmentConsole))]
 	public sealed class IMGUIDevelopmentConsole : MonoBehaviour, IDevelopmentConsoleInput, IDevelopmentConsoleOutput
 	{
-		[SerializeField] private KeyCode _showKey = KeyCode.Backslash;
+		[SerializeField] private KeyCode[] _showKeys = { KeyCode.Backslash };
 		[SerializeField] private Settings _settings;
 
 		private bool _show;
@@ -22,6 +23,7 @@ namespace Depra.Console.Development.IMGUI
 		private Matrix4x4 _originalGUIMatrix;
 
 		private event Action<ConsoleAction> StateChanged;
+
 		event Action<ConsoleAction> IDevelopmentConsoleInput.StateChanged
 		{
 			add => StateChanged += value;
@@ -43,7 +45,7 @@ namespace Depra.Console.Development.IMGUI
 
 		private void LateUpdate()
 		{
-			if (!Show && AcceptNewInput && Input.GetKeyUp(_showKey))
+			if (!Show && AcceptNewInput && _showKeys.Any(Input.GetKeyUp))
 			{
 				_lastInputTime = Time.time;
 				Show = true;
@@ -133,7 +135,7 @@ namespace Depra.Console.Development.IMGUI
 				StateChanged?.Invoke(ConsoleAction.PREVIOUS_COMMAND_IN_HISTORY);
 				@event.Use();
 			}
-			else if (@event.keyCode == KeyCode.Escape || @event.keyCode == _showKey)
+			else if (@event.keyCode == KeyCode.Escape || _showKeys.Any(x => x == @event.keyCode))
 			{
 				Show = false;
 				@event.Use();
