@@ -4,6 +4,7 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("Depra.Console.Development.IMGUI")]
+[assembly: InternalsVisibleTo("Depra.Console.Development.InputSystem")]
 
 namespace Depra.Console.Development
 {

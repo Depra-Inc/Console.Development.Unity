@@ -1,0 +1,25 @@
+{
+    "name": "Depra.Console.Development.InputSystem",
+    "rootNamespace": "Depra.Console.Development.InputSystem",
+    "references": [
+        "GUID:c2315f1f57e3b497e9ecc0d4ef59101a",
+        "GUID:75469ad4d38634e559750d17036d5f7c"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "INCLUDE_NEW_INPUT_SYSTEM"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "",
+            "define": "INCLUDE_NEW_INPUT_SYSTEM"
+        }
+    ],
+    "noEngineReferences": false
+}

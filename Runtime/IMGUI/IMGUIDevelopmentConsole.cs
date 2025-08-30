@@ -10,17 +10,24 @@ using static Depra.Console.Development.Module;
 namespace Depra.Console.Development.IMGUI
 {
 	[AddComponentMenu(MENU_PATH + nameof(IMGUIDevelopmentConsole))]
-	public sealed class IMGUIDevelopmentConsole : MonoBehaviour, IDevelopmentConsoleInput, IDevelopmentConsoleOutput
+	internal sealed class IMGUIDevelopmentConsole : MonoBehaviour,
+		IDevelopmentConsoleView,
+		IDevelopmentConsoleInput,
+		IDevelopmentConsoleOutput
 	{
 		[SerializeField] private KeyCode[] _showKeys = { KeyCode.Backslash };
 		[SerializeField] private Settings _settings;
 
 		private bool _show;
-		private bool _needFocus = true;
+		private bool _keepFocus = true;
 		private float _lastInputTime = -1f;
 
 		private GUIStyle _textStyle;
+		private GUIStyle _buttonStyle;
 		private Matrix4x4 _originalGUIMatrix;
+
+		public event Action Opened;
+		public event Action Closed;
 
 		private event Action<ConsoleAction> StateChanged;
 
@@ -85,19 +92,30 @@ namespace Depra.Console.Development.IMGUI
 			GUILayout.BeginHorizontal();
 			GUI.SetNextControlName(Settings.TEXT_INPUT_NAME);
 			Value = GUILayout.TextField(Value, _textStyle, GUILayout.ExpandHeight(true));
-			var height = _settings.Height - _settings.Margin * 2f;
-			if (GUILayout.Button("X", _textStyle, GUILayout.Width(_settings.Height), GUILayout.Height(height)))
+
+			if (_settings.EnableCloseButton)
 			{
-				Show = false;
+				_buttonStyle ??= new GUIStyle(GUI.skin.button)
+				{
+					fontStyle = FontStyle.Bold,
+					fontSize = _settings.FontSize,
+					alignment = TextAnchor.MiddleCenter,
+					normal = { textColor = _settings.AccentColor }
+				};
+
+				var height = _settings.Height - _settings.Margin * 2f;
+				if (GUILayout.Button("X", _buttonStyle, GUILayout.Width(_settings.Height), GUILayout.Height(height)))
+				{
+					Show = false;
+				}
 			}
 
 			GUILayout.EndHorizontal();
 			GUILayout.EndArea();
 
-			if (_needFocus)
+			if (_keepFocus)
 			{
 				GUI.FocusControl(Settings.TEXT_INPUT_NAME);
-				_needFocus = false;
 			}
 		}
 
@@ -123,6 +141,7 @@ namespace Depra.Console.Development.IMGUI
 			if (@event.keyCode == KeyCode.Return)
 			{
 				StateChanged?.Invoke(ConsoleAction.EXECUTE_COMMAND);
+				Show = false;
 				@event.Use();
 			}
 			else if (@event.keyCode == KeyCode.DownArrow)
@@ -148,10 +167,12 @@ namespace Depra.Console.Development.IMGUI
 			switch (value)
 			{
 				case true when !_show:
-					_needFocus = true;
+					_keepFocus = true;
+					Opened?.Invoke();
 					break;
 				case false when _show:
 					StateChanged?.Invoke(ConsoleAction.NONE);
+					Closed?.Invoke();
 					break;
 			}
 
@@ -159,13 +180,15 @@ namespace Depra.Console.Development.IMGUI
 		}
 
 		[Serializable]
-		public sealed class Settings
+		private sealed class Settings
 		{
 			internal const string TEXT_INPUT_NAME = "ConsoleTextInput";
 
 			[field: SerializeField] public float AcceptNewCommandTime { get; private set; } = 0.1f;
+			[field: SerializeField] public bool EnableCloseButton { get; private set; } = true;
 			[field: SerializeField] public int FontSize { get; private set; } = 30;
 			[field: SerializeField] public Color FontColor { get; private set; } = Color.white;
+			[field: SerializeField] public Color AccentColor { get; private set; } = Color.red;
 			[field: SerializeField] public float Height { get; private set; } = 48.0f;
 			[field: SerializeField] public float Margin { get; private set; } = 5.0f;
 			[field: SerializeField] public float DesignScreenWidth { get; private set; } = 1920.0f;
