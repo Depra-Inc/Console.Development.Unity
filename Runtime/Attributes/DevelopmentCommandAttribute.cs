@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// © 2025 Nikolay Melnikov <n.melnikov@depra.org>
+// © 2025-2026 Depra <n.melnikov@depra.org>
 
 using System;
 using System.Runtime.CompilerServices;
@@ -32,7 +32,7 @@ namespace Depra.Console.Development
 			Alias = alias.ToLower();
 			foreach (var symbol in BANNED_ALIAS_CHARS)
 			{
-				if (Alias.Contains(symbol) == false)
+				if (!Alias.Contains(symbol))
 				{
 					continue;
 				}
