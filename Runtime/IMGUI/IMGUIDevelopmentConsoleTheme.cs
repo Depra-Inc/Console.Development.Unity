@@ -13,6 +13,7 @@ namespace Depra.Console.Development.IMGUI
 		[Min(0)] [SerializeField] private int _fontSize = 16;
 		[SerializeField] private float _padding = 10f;
 		[SerializeField] private string _promptSymbol = "]";
+		[Min(0)] [SerializeField] private float _inputHeight = 40f;
 
 		[SerializeField] private Color _backgroundColor = new(0f, 0f, 0f, 0.85f);
 		[SerializeField] private Color _logColor = new(0f, 1f, 0f, 1f);
@@ -31,6 +32,7 @@ namespace Depra.Console.Development.IMGUI
 		public int FontSize => _fontSize;
 		public float Padding => _padding;
 		public string PromptSymbol => _promptSymbol;
+		public float InputHeight => _inputHeight;
 
 		public Color BackgroundColor => _backgroundColor;
 		public Color LogColor => _logColor;

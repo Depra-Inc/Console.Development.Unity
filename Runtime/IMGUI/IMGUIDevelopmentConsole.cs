@@ -24,7 +24,7 @@ namespace Depra.Console.Development.IMGUI
 		private const string INPUT_CONTROL_NAME = "Console_TextInput";
 		private const string PREF_KEY_EXPANDED = "Console_IsExpanded";
 
-		private bool _show;
+		private bool _isVisible;
 		private bool _isAnimating;
 		private float _animationProgress;
 		private float _lastInputTime = -1f;
@@ -92,9 +92,10 @@ namespace Depra.Console.Development.IMGUI
 			if (_isAnimating)
 			{
 				var speed = _settings.AnimationSpeed;
-				var targetProgress = _show ? 1f : 0f;
-				_animationProgress = Mathf.MoveTowards(_animationProgress, targetProgress, Time.deltaTime * speed);
-				if (Mathf.Approximately(_animationProgress, _show ? 1f : 0f))
+				var targetProgress = _isVisible ? 1f : 0f;
+				var maxDelta = Time.unscaledDeltaTime * speed;
+				_animationProgress = Mathf.MoveTowards(_animationProgress, targetProgress, maxDelta);
+				if (Mathf.Approximately(_animationProgress, _isVisible ? 1f : 0f))
 				{
 					_isAnimating = false;
 				}
@@ -104,7 +105,8 @@ namespace Depra.Console.Development.IMGUI
 			{
 				var speed = _settings.AnimationSpeed * 1.5f;
 				var targetProgress = _isExpanded ? 1f : 0f;
-				_expandAnimationProgress = Mathf.MoveTowards(_expandAnimationProgress, targetProgress, Time.deltaTime * speed);
+				var maxDelta = Time.unscaledDeltaTime * speed;
+				_expandAnimationProgress = Mathf.MoveTowards(_expandAnimationProgress, targetProgress, maxDelta);
 				if (Mathf.Approximately(_expandAnimationProgress, targetProgress))
 				{
 					_isExpandAnimating = false;
@@ -123,22 +125,22 @@ namespace Depra.Console.Development.IMGUI
 
 		private void LateUpdate()
 		{
-			if (!_show && !_isAnimating && AcceptNewInput && _showKeys.Any(Input.GetKeyUp))
+			if (!_isVisible && !_isAnimating && AcceptNewInput && _showKeys.Any(Input.GetKeyUp))
 			{
-				_lastInputTime = Time.time;
+				_lastInputTime = Time.unscaledTime;
 				Show = true;
 			}
 		}
 
 		public bool Show
 		{
-			get => _show;
+			get => _isVisible;
 			set => SetShow(value);
 		}
 
 		public string Value { get; set; }
 
-		private bool AcceptNewInput => Time.time - _lastInputTime > _settings.AcceptNewCommandTime;
+		private bool AcceptNewInput => Time.unscaledTime - _lastInputTime > _settings.AcceptNewCommandTime;
 
 		public void Append(string message) => AddLogEntry(message, LogEntryType.OUTPUT);
 
@@ -156,14 +158,14 @@ namespace Depra.Console.Development.IMGUI
 		{
 			InitializeStyles();
 
-			var collapsedHeight = _settings.InputHeight + _theme.Padding * 2f;
+			var collapsedHeight = _theme.InputHeight + _theme.Padding * 2f;
 			var expandedHeight = Mathf.Lerp(collapsedHeight, Screen.height / 2f, _expandAnimationProgress);
 			var consoleHeight = expandedHeight * _animationProgress;
 			var consoleRect = new Rect(0, 0, Screen.width, consoleHeight);
 			GUI.DrawTexture(consoleRect, _backgroundTexture, ScaleMode.StretchToFill);
 			GUILayout.BeginArea(consoleRect);
 
-			var logHeight = consoleHeight - _settings.InputHeight - _theme.Padding * 2;
+			var logHeight = consoleHeight - _theme.InputHeight - _theme.Padding * 2;
 			if (_expandAnimationProgress > 0.1f)
 			{
 				DrawLog(logHeight);
@@ -222,19 +224,19 @@ namespace Depra.Console.Development.IMGUI
 
 		private void DrawInput()
 		{
-			GUILayout.BeginHorizontal(GUILayout.Height(_settings.InputHeight));
+			GUILayout.BeginHorizontal(GUILayout.Height(_theme.InputHeight));
 			GUILayout.Space(_theme.Padding);
 			GUILayout.Label(_theme.PromptSymbol, _promptStyle, GUILayout.Width(30));
 
 			GUI.SetNextControlName(INPUT_CONTROL_NAME);
 			Value = GUILayout.TextField(Value, _inputStyle,
 				GUILayout.ExpandWidth(true),
-				GUILayout.Height(_settings.InputHeight));
+				GUILayout.Height(_theme.InputHeight));
 
 			GUILayout.Space(_theme.Padding);
 			GUILayout.EndHorizontal();
 
-			if (_show && _animationProgress >= 0.99f)
+			if (_isVisible && _animationProgress >= 0.99f)
 			{
 				GUI.FocusControl(INPUT_CONTROL_NAME);
 			}
@@ -302,13 +304,7 @@ namespace Depra.Console.Development.IMGUI
 
 		private void AddLogEntry(string message, LogEntryType type)
 		{
-			_logEntries.Add(new LogEntry
-			{
-				Type = type,
-				Message = message,
-				Timestamp = Time.time
-			});
-
+			_logEntries.Add(new LogEntry { Type = type, Message = message });
 			if (_logEntries.Count > _settings.MaxLogEntries)
 			{
 				_logEntries.RemoveAt(0);
@@ -360,12 +356,12 @@ namespace Depra.Console.Development.IMGUI
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private void SetShow(bool value)
 		{
-			if (_show == value)
+			if (_isVisible == value)
 			{
 				return;
 			}
 
-			_show = value;
+			_isVisible = value;
 			_isAnimating = true;
 
 			if (value)
@@ -399,13 +395,12 @@ namespace Depra.Console.Development.IMGUI
 			_backgroundTexture ??= MakeTexture(2, 2, _theme.BackgroundColor);
 			_inputBackgroundTexture ??= MakeTexture(2, 2, _theme.InputBackgroundColor);
 			_inputFocusedTexture ??= MakeTexture(2, 2, _theme.InputFocusedColor);
-			var font = _theme.Font ?? Font.CreateDynamicFontFromOSFont(
-				new[] { "Consolas", "Courier New", "Courier" },
-				_theme.FontSize);
 
 			_logStyle ??= new GUIStyle(GUI.skin.label)
 			{
-				font = font,
+				font = _theme.Font ?? Font.CreateDynamicFontFromOSFont(
+					new[] { "Consolas", "Courier New", "Courier" },
+					_theme.FontSize),
 				fontSize = _theme.FontSize,
 				normal = { textColor = _theme.LogColor },
 				wordWrap = false,
@@ -416,7 +411,9 @@ namespace Depra.Console.Development.IMGUI
 
 			_inputStyle ??= new GUIStyle(GUI.skin.textField)
 			{
-				font = font,
+				font = _theme.Font ?? Font.CreateDynamicFontFromOSFont(
+					new[] { "Consolas", "Courier New", "Courier" },
+					_theme.FontSize),
 				fontSize = _theme.FontSize + 2,
 				normal =
 				{
@@ -435,7 +432,9 @@ namespace Depra.Console.Development.IMGUI
 
 			_promptStyle ??= new GUIStyle(GUI.skin.label)
 			{
-				font = font,
+				font = _theme.Font ?? Font.CreateDynamicFontFromOSFont(
+					new[] { "Consolas", "Courier New", "Courier" },
+					_theme.FontSize),
 				fontSize = _theme.FontSize + 2,
 				normal = { textColor = _theme.PromptColor },
 				fontStyle = FontStyle.Bold,
@@ -485,13 +484,11 @@ namespace Depra.Console.Development.IMGUI
 		{
 			public LogEntryType Type;
 			public string Message;
-			public float Timestamp;
 		}
 
 		[Serializable]
 		private sealed class Settings
 		{
-			[field: SerializeField] public float InputHeight { get; private set; } = 40f;
 			[field: SerializeField] public int MaxHistorySize { get; private set; } = 50;
 			[field: SerializeField] public int MaxLogEntries { get; private set; } = 100;
 			[field: SerializeField] public float AnimationSpeed { get; private set; } = 5f;
