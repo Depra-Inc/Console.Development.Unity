@@ -18,7 +18,9 @@ namespace Depra.Console.Development.IMGUI
 	{
 		[SerializeField] private KeyCode[] _showKeys = { KeyCode.Backslash };
 		[SerializeField] private KeyCode _toggleExpandKey = KeyCode.Tab;
-		[SerializeField] private Settings _settings;
+		[Min(0)] [SerializeField] private int _maxHistorySize = 50;
+		[Min(0)] [SerializeField] private int _maxLogEntries = 100;
+		[Min(0)] [SerializeField] private float _acceptNewCommandTime = 0.1f;
 		[SerializeField] private IMGUIDevelopmentConsoleTheme _theme;
 
 		private const string INPUT_CONTROL_NAME = "Console_TextInput";
@@ -68,6 +70,7 @@ namespace Depra.Console.Development.IMGUI
 				return;
 			}
 
+			Value = string.Empty;
 			_logEntries = new List<LogEntry>();
 			_commandHistory = new List<string>();
 			_isExpanded = PlayerPrefs.GetInt(PREF_KEY_EXPANDED, 1) == 1;
@@ -91,11 +94,11 @@ namespace Depra.Console.Development.IMGUI
 		{
 			if (_isAnimating)
 			{
-				var speed = _settings.AnimationSpeed;
+				var speed = _theme.AnimationSpeed;
 				var targetProgress = _isVisible ? 1f : 0f;
 				var maxDelta = Time.unscaledDeltaTime * speed;
 				_animationProgress = Mathf.MoveTowards(_animationProgress, targetProgress, maxDelta);
-				if (Mathf.Approximately(_animationProgress, _isVisible ? 1f : 0f))
+				if (Mathf.Approximately(_animationProgress, targetProgress))
 				{
 					_isAnimating = false;
 				}
@@ -103,7 +106,7 @@ namespace Depra.Console.Development.IMGUI
 
 			if (_isExpandAnimating)
 			{
-				var speed = _settings.AnimationSpeed * 1.5f;
+				var speed = _theme.AnimationSpeed * 1.5f;
 				var targetProgress = _isExpanded ? 1f : 0f;
 				var maxDelta = Time.unscaledDeltaTime * speed;
 				_expandAnimationProgress = Mathf.MoveTowards(_expandAnimationProgress, targetProgress, maxDelta);
@@ -118,8 +121,8 @@ namespace Depra.Console.Development.IMGUI
 		{
 			if (_animationProgress > 0f)
 			{
-				DrawConsole();
 				ProcessInput();
+				DrawConsole();
 			}
 		}
 
@@ -140,7 +143,7 @@ namespace Depra.Console.Development.IMGUI
 
 		public string Value { get; set; }
 
-		private bool AcceptNewInput => Time.unscaledTime - _lastInputTime > _settings.AcceptNewCommandTime;
+		private bool AcceptNewInput => Time.unscaledTime - _lastInputTime > _acceptNewCommandTime;
 
 		public void Append(string message) => AddLogEntry(message, LogEntryType.OUTPUT);
 
@@ -226,12 +229,22 @@ namespace Depra.Console.Development.IMGUI
 		{
 			GUILayout.BeginHorizontal(GUILayout.Height(_theme.InputHeight));
 			GUILayout.Space(_theme.Padding);
-			GUILayout.Label(_theme.PromptSymbol, _promptStyle, GUILayout.Width(30));
+			GUILayout.Label(_theme.PromptSymbol, _promptStyle,
+				GUILayout.Width(30), GUILayout.Height(_theme.InputHeight));
 
 			GUI.SetNextControlName(INPUT_CONTROL_NAME);
-			Value = GUILayout.TextField(Value, _inputStyle,
-				GUILayout.ExpandWidth(true),
-				GUILayout.Height(_theme.InputHeight));
+			var newValue = GUILayout.TextField(Value, _inputStyle,
+				GUILayout.ExpandWidth(true), GUILayout.Height(_theme.InputHeight));
+
+			if (newValue != Value && newValue.Length > Value.Length)
+			{
+				var addedChar = newValue[^1];
+				Value = ShouldFilterCharacter(addedChar) ? Value : newValue;
+			}
+			else
+			{
+				Value = newValue;
+			}
 
 			GUILayout.Space(_theme.Padding);
 			GUILayout.EndHorizontal();
@@ -241,6 +254,30 @@ namespace Depra.Console.Development.IMGUI
 				GUI.FocusControl(INPUT_CONTROL_NAME);
 			}
 		}
+
+		private bool ShouldFilterCharacter(char c)
+		{
+			foreach (var keyCode in _showKeys)
+			{
+				var keyChar = KeyCodeToChar(keyCode);
+				if (keyChar != '\0' && c == keyChar)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		private static char KeyCodeToChar(KeyCode keyCode) => keyCode switch
+		{
+			KeyCode.Backslash => '\\',
+			KeyCode.BackQuote => '`',
+			KeyCode.Quote => '\'',
+			KeyCode.Slash => '/',
+			KeyCode.Tilde => '~',
+			_ => '\0'
+		};
 
 		private void ProcessInput()
 		{
@@ -273,8 +310,14 @@ namespace Depra.Console.Development.IMGUI
 				StateChanged?.Invoke(ConsoleAction.PREVIOUS_COMMAND_IN_HISTORY);
 				@event.Use();
 			}
-			else if (@event.keyCode == KeyCode.Escape || _showKeys.Any(x => x == @event.keyCode))
+			else if (@event.keyCode == KeyCode.Escape)
 			{
+				Show = false;
+				@event.Use();
+			}
+			else if (_showKeys.Any(x => x == @event.keyCode))
+			{
+				_lastInputTime = Time.unscaledTime;
 				Show = false;
 				@event.Use();
 			}
@@ -305,7 +348,7 @@ namespace Depra.Console.Development.IMGUI
 		private void AddLogEntry(string message, LogEntryType type)
 		{
 			_logEntries.Add(new LogEntry { Type = type, Message = message });
-			if (_logEntries.Count > _settings.MaxLogEntries)
+			if (_logEntries.Count > _maxLogEntries)
 			{
 				_logEntries.RemoveAt(0);
 			}
@@ -320,7 +363,7 @@ namespace Depra.Console.Development.IMGUI
 			}
 
 			_commandHistory.Add(command);
-			if (_commandHistory.Count > _settings.MaxHistorySize)
+			if (_commandHistory.Count > _maxHistorySize)
 			{
 				_commandHistory.RemoveAt(0);
 			}
@@ -484,15 +527,6 @@ namespace Depra.Console.Development.IMGUI
 		{
 			public LogEntryType Type;
 			public string Message;
-		}
-
-		[Serializable]
-		private sealed class Settings
-		{
-			[field: SerializeField] public int MaxHistorySize { get; private set; } = 50;
-			[field: SerializeField] public int MaxLogEntries { get; private set; } = 100;
-			[field: SerializeField] public float AnimationSpeed { get; private set; } = 5f;
-			[field: SerializeField] public float AcceptNewCommandTime { get; private set; } = 0.1f;
 		}
 	}
 }
