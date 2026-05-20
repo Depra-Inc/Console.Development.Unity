@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using UnityEngine;
 using static Depra.Console.Development.Module;
 
@@ -50,6 +51,7 @@ namespace Depra.Console.Development.IMGUI
 		private List<LogEntry> _logEntries;
 		private List<string> _commandHistory;
 		private Vector2 _logScrollPosition;
+		private CursorLockMode _previousCursorState;
 
 		public event Action Opened;
 		public event Action Closed;
@@ -195,8 +197,9 @@ namespace Depra.Console.Development.IMGUI
 				GUIStyle.none,
 				GUILayout.Height(height));
 
-			foreach (var entry in _logEntries)
+			for (var index = 0; index < _logEntries.Count; index++)
 			{
+				var entry = _logEntries[index];
 				var color = entry.Type switch
 				{
 					LogEntryType.COMMAND => _theme.CommandColor,
@@ -340,6 +343,11 @@ namespace Depra.Console.Development.IMGUI
 				_logScrollPosition.y += 100f;
 				@event.Use();
 			}
+			else if (@event.keyCode == KeyCode.C && @event.control)
+			{
+				CopyLogToClipboard();
+				@event.Use();
+			}
 		}
 
 		private void ExecuteCommand(string command)
@@ -438,10 +446,17 @@ namespace Depra.Console.Development.IMGUI
 			{
 				_historyIndex = -1;
 				_currentInput = string.Empty;
+				_previousCursorState = Cursor.lockState;
+				if (_isExpanded)
+				{
+					Cursor.lockState = CursorLockMode.None;
+				}
+
 				Opened?.Invoke();
 			}
 			else
 			{
+				Cursor.lockState = _previousCursorState;
 				StateChanged?.Invoke(ConsoleAction.NONE);
 				Closed?.Invoke();
 			}
@@ -452,12 +467,36 @@ namespace Depra.Console.Development.IMGUI
 			_isExpanded = !_isExpanded;
 			_isExpandAnimating = true;
 			SaveExpandedState();
+			Cursor.lockState = _isExpanded ? CursorLockMode.None : _previousCursorState;
 		}
-		
+
 		private void SaveExpandedState()
 		{
 			PlayerPrefs.SetInt(PREF_KEY_EXPANDED, _isExpanded ? 1 : 0);
 			PlayerPrefs.Save();
+		}
+
+		private void CopyLogToClipboard()
+		{
+			var builder = new StringBuilder();
+			foreach (var entry in _logEntries)
+			{
+				if (entry.Type == LogEntryType.OUTPUT && entry.Message == _theme.WelcomeText)
+				{
+					continue;
+				}
+
+				var prefix = entry.Type switch
+				{
+					LogEntryType.COMMAND => _theme.PromptSymbol + " ",
+					LogEntryType.ERROR   => "[ERROR] ",
+					LogEntryType.WARNING => "[WARN] ",
+					_                    => ""
+				};
+				builder.AppendLine(prefix + entry.Message);
+			}
+
+			GUIUtility.systemCopyBuffer = builder.ToString();
 		}
 
 		private void InitializeStyles()
