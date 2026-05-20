@@ -43,6 +43,7 @@ namespace Depra.Console.Development.IMGUI
 		private Texture2D _inputBackgroundTexture;
 		private Texture2D _inputFocusedTexture;
 		private Texture2D _separatorTexture;
+		private float _scaledInputHeight;
 
 		private int _historyIndex = -1;
 		private string _currentInput = string.Empty;
@@ -80,10 +81,13 @@ namespace Depra.Console.Development.IMGUI
 			{
 				Append(_theme.WelcomeText);
 			}
+
+			Application.logMessageReceived += CaptureLog;
 		}
 
 		private void OnDestroy()
 		{
+			Application.logMessageReceived -= CaptureLog;
 			DestroyTexture(ref _backgroundTexture);
 			DestroyTexture(ref _inputBackgroundTexture);
 			DestroyTexture(ref _inputFocusedTexture);
@@ -161,14 +165,14 @@ namespace Depra.Console.Development.IMGUI
 		{
 			InitializeStyles();
 
-			var collapsedHeight = _theme.InputHeight + _theme.Padding * 2f;
+			var collapsedHeight = _scaledInputHeight + _theme.Padding * 2f;
 			var expandedHeight = Mathf.Lerp(collapsedHeight, Screen.height / 2f, _expandAnimationProgress);
 			var consoleHeight = expandedHeight * _animationProgress;
 			var consoleRect = new Rect(0, 0, Screen.width, consoleHeight);
 			GUI.DrawTexture(consoleRect, _backgroundTexture, ScaleMode.StretchToFill);
 			GUILayout.BeginArea(consoleRect);
 
-			var logHeight = consoleHeight - _theme.InputHeight - _theme.Padding * 2;
+			var logHeight = consoleHeight - _scaledInputHeight - _theme.Padding * 2;
 			if (_expandAnimationProgress > 0.1f)
 			{
 				DrawLog(logHeight);
@@ -227,14 +231,14 @@ namespace Depra.Console.Development.IMGUI
 
 		private void DrawInput()
 		{
-			GUILayout.BeginHorizontal(GUILayout.Height(_theme.InputHeight));
+			GUILayout.BeginHorizontal(GUILayout.Height(_scaledInputHeight));
 			GUILayout.Space(_theme.Padding);
 			GUILayout.Label(_theme.PromptSymbol, _promptStyle,
-				GUILayout.Width(30), GUILayout.Height(_theme.InputHeight));
+				GUILayout.Width(30), GUILayout.Height(_scaledInputHeight));
 
 			GUI.SetNextControlName(INPUT_CONTROL_NAME);
 			var newValue = GUILayout.TextField(Value, _inputStyle,
-				GUILayout.ExpandWidth(true), GUILayout.Height(_theme.InputHeight));
+				GUILayout.ExpandWidth(true), GUILayout.Height(_scaledInputHeight));
 
 			if (newValue != Value && newValue.Length > Value.Length)
 			{
@@ -342,9 +346,33 @@ namespace Depra.Console.Development.IMGUI
 		{
 			AddLogEntry(command, LogEntryType.COMMAND);
 			AddToHistory(command);
+			_logScrollPosition.y = Mathf.Infinity;
 			StateChanged?.Invoke(ConsoleAction.EXECUTE_COMMAND);
 		}
 
+		private void CaptureLog(string condition, string stackTrace, LogType type)
+		{
+			LogEntryType entryType;
+			switch (type)
+			{
+				case LogType.Warning:
+					entryType = LogEntryType.WARNING;
+					break;
+				case LogType.Error:
+				case LogType.Assert:
+				case LogType.Exception:
+					entryType = LogEntryType.ERROR;
+					break;
+				case LogType.Log:
+				default:
+					entryType = LogEntryType.OUTPUT;
+					break;
+			}
+
+			AddLogEntry(condition, entryType);
+			_logScrollPosition.y = Mathf.Infinity;
+		}
+		
 		private void AddLogEntry(string message, LogEntryType type)
 		{
 			_logEntries.Add(new LogEntry { Type = type, Message = message });
@@ -356,7 +384,6 @@ namespace Depra.Console.Development.IMGUI
 
 		private void AddToHistory(string command)
 		{
-			_logScrollPosition.y = Mathf.Infinity;
 			if (_commandHistory.Count > 0 && _commandHistory[^1] == command)
 			{
 				return;
@@ -486,7 +513,8 @@ namespace Depra.Console.Development.IMGUI
 
 			var fontScale = Mathf.Clamp(Screen.height / 1080f, 0.9f, 1.4f);
 			_logStyle.fontSize = Mathf.RoundToInt(_theme.FontSize * fontScale);
-			_inputStyle.fontSize = _promptStyle.fontSize = _logStyle.fontSize + 2;
+			_inputStyle.fontSize = _promptStyle.fontSize = Mathf.RoundToInt((_theme.FontSize + 2) * fontScale);
+			_scaledInputHeight = _theme.InputHeight * fontScale;
 		}
 
 		private static Texture2D MakeTexture(int width, int height, Color color)
