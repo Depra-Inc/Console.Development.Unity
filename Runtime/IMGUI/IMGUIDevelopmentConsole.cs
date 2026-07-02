@@ -22,6 +22,7 @@ namespace Depra.Console.Development.IMGUI
 		[Min(0)] [SerializeField] private int _maxHistorySize = 50;
 		[Min(0)] [SerializeField] private int _maxLogEntries = 100;
 		[Min(0)] [SerializeField] private float _acceptNewCommandTime = 0.1f;
+		[SerializeField] private bool _lazyStylesInitialization;
 		[SerializeField] private IMGUIDevelopmentConsoleTheme _theme;
 
 		private const string INPUT_CONTROL_NAME = "Console_TextInput";
@@ -45,6 +46,7 @@ namespace Depra.Console.Development.IMGUI
 		private Texture2D _inputFocusedTexture;
 		private Texture2D _separatorTexture;
 		private float _scaledInputHeight;
+		private bool _stylesInitialized;
 
 		private int _historyIndex = -1;
 		private string _currentInput = string.Empty;
@@ -125,9 +127,19 @@ namespace Depra.Console.Development.IMGUI
 
 		private void OnGUI()
 		{
+			if (!_stylesInitialized && !_lazyStylesInitialization)
+			{
+				InitializeStyles();
+			}
+
 			if (_animationProgress > 0f)
 			{
 				ProcessInput();
+				if (!_stylesInitialized && _lazyStylesInitialization)
+				{
+					InitializeStyles();
+				}
+
 				DrawConsole();
 			}
 		}
@@ -165,8 +177,6 @@ namespace Depra.Console.Development.IMGUI
 
 		private void DrawConsole()
 		{
-			InitializeStyles();
-
 			var collapsedHeight = _scaledInputHeight + _theme.Padding * 2f;
 			var expandedHeight = Mathf.Lerp(collapsedHeight, Screen.height / 2f, _expandAnimationProgress);
 			var consoleHeight = expandedHeight * _animationProgress;
@@ -380,7 +390,7 @@ namespace Depra.Console.Development.IMGUI
 			AddLogEntry(condition, entryType);
 			_logScrollPosition.y = Mathf.Infinity;
 		}
-		
+
 		private void AddLogEntry(string message, LogEntryType type)
 		{
 			_logEntries.Add(new LogEntry { Type = type, Message = message });
@@ -489,9 +499,9 @@ namespace Depra.Console.Development.IMGUI
 				var prefix = entry.Type switch
 				{
 					LogEntryType.COMMAND => _theme.PromptSymbol + " ",
-					LogEntryType.ERROR   => "[ERROR] ",
+					LogEntryType.ERROR => "[ERROR] ",
 					LogEntryType.WARNING => "[WARN] ",
-					_                    => ""
+					_ => ""
 				};
 				builder.AppendLine(prefix + entry.Message);
 			}
@@ -554,6 +564,8 @@ namespace Depra.Console.Development.IMGUI
 			_logStyle.fontSize = Mathf.RoundToInt(_theme.FontSize * fontScale);
 			_inputStyle.fontSize = _promptStyle.fontSize = Mathf.RoundToInt((_theme.FontSize + 2) * fontScale);
 			_scaledInputHeight = _theme.InputHeight * fontScale;
+
+			_stylesInitialized = true;
 		}
 
 		private static Texture2D MakeTexture(int width, int height, Color color)
