@@ -49,7 +49,7 @@ namespace Depra.Console.Development.IMGUI
 
 		private int _historyIndex = -1;
 		private string _currentInput = string.Empty;
-		private List<LogEntry> _logEntries;
+		private List<LogEntry> _logEntries = new();
 		private List<string> _commandHistory;
 		private Vector2 _logScrollPosition;
 		private CursorLockMode _previousCursorState;
@@ -65,7 +65,7 @@ namespace Depra.Console.Development.IMGUI
 			remove => StateChanged -= value;
 		}
 
-		private void Start()
+		private void Awake()
 		{
 			if (_theme == null)
 			{
@@ -75,7 +75,6 @@ namespace Depra.Console.Development.IMGUI
 			}
 
 			Value = string.Empty;
-			_logEntries = new List<LogEntry>();
 			_commandHistory = new List<string>();
 			_isExpanded = PlayerPrefs.GetInt(PREF_KEY_EXPANDED, 1) == 1;
 			_expandAnimationProgress = _isExpanded ? 1f : 0f;
