@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using UnityEngine;
@@ -17,7 +16,7 @@ namespace Depra.Console.Development.IMGUI
 		IDevelopmentConsoleInput,
 		IDevelopmentConsoleOutput
 	{
-		[SerializeField] private KeyCode[] _showKeys = { KeyCode.Backslash };
+		[SerializeField] private KeyCode _toggleOpenKey = KeyCode.BackQuote;
 		[SerializeField] private KeyCode _toggleExpandKey = KeyCode.Tab;
 		[Min(0)] [SerializeField] private int _maxHistorySize = 50;
 		[Min(0)] [SerializeField] private int _maxLogEntries = 100;
@@ -50,7 +49,7 @@ namespace Depra.Console.Development.IMGUI
 
 		private int _historyIndex = -1;
 		private string _currentInput = string.Empty;
-		private List<LogEntry> _logEntries;
+		private List<LogEntry> _logEntries = new();
 		private List<string> _commandHistory;
 		private Vector2 _logScrollPosition;
 		private CursorLockMode _previousCursorState;
@@ -66,7 +65,7 @@ namespace Depra.Console.Development.IMGUI
 			remove => StateChanged -= value;
 		}
 
-		private void Start()
+		private void Awake()
 		{
 			if (_theme == null)
 			{
@@ -76,7 +75,6 @@ namespace Depra.Console.Development.IMGUI
 			}
 
 			Value = string.Empty;
-			_logEntries = new List<LogEntry>();
 			_commandHistory = new List<string>();
 			_isExpanded = PlayerPrefs.GetInt(PREF_KEY_EXPANDED, 1) == 1;
 			_expandAnimationProgress = _isExpanded ? 1f : 0f;
@@ -85,13 +83,10 @@ namespace Depra.Console.Development.IMGUI
 			{
 				Append(_theme.WelcomeText);
 			}
-
-			Application.logMessageReceived += CaptureLog;
 		}
 
 		private void OnDestroy()
 		{
-			Application.logMessageReceived -= CaptureLog;
 			DestroyTexture(ref _backgroundTexture);
 			DestroyTexture(ref _inputBackgroundTexture);
 			DestroyTexture(ref _inputFocusedTexture);
@@ -132,6 +127,12 @@ namespace Depra.Console.Development.IMGUI
 				InitializeStyles();
 			}
 
+			if (!_isVisible && !_isAnimating && AcceptNewInput && IsKeyReleased(_toggleOpenKey))
+			{
+				_lastInputTime = Time.unscaledTime;
+				Show = true;
+			}
+
 			if (_animationProgress > 0f)
 			{
 				ProcessInput();
@@ -141,15 +142,6 @@ namespace Depra.Console.Development.IMGUI
 				}
 
 				DrawConsole();
-			}
-		}
-
-		private void LateUpdate()
-		{
-			if (!_isVisible && !_isAnimating && AcceptNewInput && _showKeys.Any(Input.GetKeyUp))
-			{
-				_lastInputTime = Time.unscaledTime;
-				Show = true;
 			}
 		}
 
@@ -163,7 +155,9 @@ namespace Depra.Console.Development.IMGUI
 
 		private bool AcceptNewInput => Time.unscaledTime - _lastInputTime > _acceptNewCommandTime;
 
-		public void Append(string message) => AddLogEntry(message, LogEntryType.OUTPUT);
+		public void Append(string message) => AddLogEntry(message, ConsoleEntryType.OUTPUT);
+
+		public void Append(string message, ConsoleEntryType type) => AddLogEntry(message, type);
 
 		public void Clear()
 		{
@@ -212,18 +206,18 @@ namespace Depra.Console.Development.IMGUI
 				var entry = _logEntries[index];
 				var color = entry.Type switch
 				{
-					LogEntryType.COMMAND => _theme.CommandColor,
-					LogEntryType.OUTPUT => _theme.LogColor,
-					LogEntryType.ERROR => _theme.ErrorColor,
-					LogEntryType.WARNING => _theme.WarningColor,
+					ConsoleEntryType.COMMAND => _theme.CommandColor,
+					ConsoleEntryType.OUTPUT => _theme.LogColor,
+					ConsoleEntryType.ERROR => _theme.ErrorColor,
+					ConsoleEntryType.WARNING => _theme.WarningColor,
 					_ => _theme.LogColor
 				};
 
 				var prefix = entry.Type switch
 				{
-					LogEntryType.COMMAND => _theme.PromptSymbol + " ",
-					LogEntryType.ERROR => "[ERROR] ",
-					LogEntryType.WARNING => "[WARN] ",
+					ConsoleEntryType.COMMAND => _theme.PromptSymbol + " ",
+					ConsoleEntryType.ERROR => "[ERROR] ",
+					ConsoleEntryType.WARNING => "[WARN] ",
 					_ => ""
 				};
 
@@ -274,17 +268,17 @@ namespace Depra.Console.Development.IMGUI
 
 		private bool ShouldFilterCharacter(char c)
 		{
-			foreach (var keyCode in _showKeys)
+			var keyChar = KeyCodeToChar(_toggleOpenKey);
+			if (keyChar != '\0' && c == keyChar)
 			{
-				var keyChar = KeyCodeToChar(keyCode);
-				if (keyChar != '\0' && c == keyChar)
-				{
-					return true;
-				}
+				return true;
 			}
 
 			return false;
 		}
+
+		private static bool IsKeyReleased(KeyCode key) =>
+			Event.current is { type: EventType.KeyUp, keyCode: var keyCode } && keyCode == key;
 
 		private static char KeyCodeToChar(KeyCode keyCode) => keyCode switch
 		{
@@ -332,7 +326,7 @@ namespace Depra.Console.Development.IMGUI
 				Show = false;
 				@event.Use();
 			}
-			else if (_showKeys.Any(x => x == @event.keyCode))
+			else if (@event.keyCode == _toggleOpenKey)
 			{
 				_lastInputTime = Time.unscaledTime;
 				Show = false;
@@ -362,36 +356,13 @@ namespace Depra.Console.Development.IMGUI
 
 		private void ExecuteCommand(string command)
 		{
-			AddLogEntry(command, LogEntryType.COMMAND);
+			AddLogEntry(command, ConsoleEntryType.COMMAND);
 			AddToHistory(command);
 			_logScrollPosition.y = Mathf.Infinity;
 			StateChanged?.Invoke(ConsoleAction.EXECUTE_COMMAND);
 		}
 
-		private void CaptureLog(string condition, string stackTrace, LogType type)
-		{
-			LogEntryType entryType;
-			switch (type)
-			{
-				case LogType.Warning:
-					entryType = LogEntryType.WARNING;
-					break;
-				case LogType.Error:
-				case LogType.Assert:
-				case LogType.Exception:
-					entryType = LogEntryType.ERROR;
-					break;
-				case LogType.Log:
-				default:
-					entryType = LogEntryType.OUTPUT;
-					break;
-			}
-
-			AddLogEntry(condition, entryType);
-			_logScrollPosition.y = Mathf.Infinity;
-		}
-
-		private void AddLogEntry(string message, LogEntryType type)
+		private void AddLogEntry(string message, ConsoleEntryType type)
 		{
 			_logEntries.Add(new LogEntry { Type = type, Message = message });
 			if (_logEntries.Count > _maxLogEntries)
@@ -491,16 +462,16 @@ namespace Depra.Console.Development.IMGUI
 			var builder = new StringBuilder();
 			foreach (var entry in _logEntries)
 			{
-				if (entry.Type == LogEntryType.OUTPUT && entry.Message == _theme.WelcomeText)
+				if (entry.Type == ConsoleEntryType.OUTPUT && entry.Message == _theme.WelcomeText)
 				{
 					continue;
 				}
 
 				var prefix = entry.Type switch
 				{
-					LogEntryType.COMMAND => _theme.PromptSymbol + " ",
-					LogEntryType.ERROR => "[ERROR] ",
-					LogEntryType.WARNING => "[WARN] ",
+					ConsoleEntryType.COMMAND => _theme.PromptSymbol + " ",
+					ConsoleEntryType.ERROR => "[ERROR] ",
+					ConsoleEntryType.WARNING => "[WARN] ",
 					_ => ""
 				};
 				builder.AppendLine(prefix + entry.Message);
@@ -594,18 +565,10 @@ namespace Depra.Console.Development.IMGUI
 			texture = null;
 		}
 
-		private enum LogEntryType
-		{
-			COMMAND,
-			OUTPUT,
-			ERROR,
-			WARNING
-		}
-
 		private struct LogEntry
 		{
-			public LogEntryType Type;
 			public string Message;
+			public ConsoleEntryType Type;
 		}
 	}
 }
