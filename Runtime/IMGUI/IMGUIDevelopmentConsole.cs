@@ -22,6 +22,7 @@ namespace Depra.Console.Development.IMGUI
 		[Min(0)] [SerializeField] private int _maxLogEntries = 100;
 		[Min(0)] [SerializeField] private float _acceptNewCommandTime = 0.1f;
 		[SerializeField] private bool _lazyStylesInitialization;
+		[SerializeField] private bool _sleepWhenClosed;
 		[SerializeField] private IMGUIDevelopmentConsoleTheme _theme;
 
 		private const string INPUT_CONTROL_NAME = "Console_TextInput";
@@ -83,6 +84,8 @@ namespace Depra.Console.Development.IMGUI
 			{
 				Append(_theme.WelcomeText);
 			}
+
+			enabled = !_sleepWhenClosed;
 		}
 
 		private void OnDestroy()
@@ -104,6 +107,10 @@ namespace Depra.Console.Development.IMGUI
 				if (Mathf.Approximately(_animationProgress, targetProgress))
 				{
 					_isAnimating = false;
+					if (!_isVisible && _sleepWhenClosed)
+					{
+						enabled = false;
+					}
 				}
 			}
 
@@ -326,7 +333,7 @@ namespace Depra.Console.Development.IMGUI
 				Show = false;
 				@event.Use();
 			}
-			else if (@event.keyCode == _toggleOpenKey)
+			else if (@event.keyCode == _toggleOpenKey && !_sleepWhenClosed)
 			{
 				_lastInputTime = Time.unscaledTime;
 				Show = false;
@@ -422,9 +429,11 @@ namespace Depra.Console.Development.IMGUI
 
 			_isVisible = value;
 			_isAnimating = true;
+			_lastInputTime = Time.unscaledTime;
 
 			if (value)
 			{
+				enabled = true;
 				_historyIndex = -1;
 				_currentInput = string.Empty;
 				_previousCursorState = Cursor.lockState;
