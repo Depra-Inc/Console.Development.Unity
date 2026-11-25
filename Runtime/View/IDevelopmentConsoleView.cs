@@ -6,5 +6,7 @@ namespace Depra.Console.Development
 	{
 		event Action Opened;
 		event Action Closed;
+
+		bool Show { get; set; }
 	}
 }
